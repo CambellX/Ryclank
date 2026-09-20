@@ -28,9 +28,6 @@ Tune the bot on anyone. It will read all of the user's conversations, and build 
 
 Tell heart wrenching stories by directing the bot.
 <body align="left">
-  <img src = "images/ryclank6.png" width=400>
-</body>
-<body align="left">
   <img src = "images/ryclank7.png" width=400>
 </body>
 
