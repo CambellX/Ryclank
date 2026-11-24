@@ -9,6 +9,7 @@ import chatbot
 import tuning
 import imageParsing
 import conversationParsing
+import ctf
 
 #Contains all the history and member details
 serversDirectory = "discord_servers"
@@ -624,6 +625,54 @@ async def stop(ctx):
     await ctx.send("De-equipped adapter")
 
 # # # # # # # # # # # # # # # # # # # # # # # # #
+# CTF STUFF
+CTF_CHANNEL_ID = 1574559785334865961
+announcements = {} # message_id to channel_id
+# just to test
+@bot.command()
+async def upcoming(ctx, limit):
+    await ctx.send(ctf.fetchUpcomingString(limit), suppress_embeds=True)
+
+@bot.command()
+async def create_ctf(ctx, ctf_name):
+    ctf_info = ctf.fetchCTF(ctf_name)
+    if not ctf_info:
+        await ctx.send(f"Cant find {ctf_name}")
+        return
+    channel_name = ctf_name.lower().replace(" ", "-")
+    channel = discord.utils.get(ctx.guild.text_channels, name=channel_name)
+
+    if channel is None:
+        channel = await ctx.guild.create_text_channel(channel_name)
+        await channel.set_permissions(ctx.guild.default_role, view_channel=False)
+
+    await sendAnnouncement(ctf_info, channel)
+    await ctx.send("Created Channel")
+
+@bot.command()
+async def sendAnnouncement(ctf_info, destination_channel):
+    channel = bot.get_channel(CTF_CHANNEL_ID)
+    message = await channel.send(f"""
+REACT TO THIS MESSAGE TO JOIN {ctf_info["title"]}
+from {ctf_info["start"]} to {ctf_info["finish"]}
+CTFTime URL: {ctf_info["ctftime_url"]}
+Prizes: {ctf_info["prizes"]}
+Registration URL: {ctf_info["url"]}
+""")
+    announcements[message.id] = destination_channel.id
+
+@bot.event
+async def on_raw_reaction_add(reaction):
+    
+    if reaction.message_id not in announcements:
+        return
+
+    channel = bot.get_channel(announcements[reaction.message_id])
+    if channel is None:
+        print("channel doesnt exist")
+        return
+    await channel.set_permissions(reaction.member, view_channel=True, send_messages=True)
+
 @bot.command()
 async def help(ctx):
     await ctx.send(
