@@ -36,20 +36,16 @@ def parseInfo(ctftime_response):
     for event in ctftime_response:
         current_event_info = {"title": event["title"]}
         for tag in event:
-            if tag in DATE_TAGS:
-                current_event_info.update({tag: toTimezone(event[tag], LOCAL_TIMEZONE)})
-            # elif not tag in IGNORED_TAGS:
-            #     current_event_info.update({tag: str(event[tag])[:256]})
+            # if tag in DATE_TAGS:
+            #     current_event_info[tag] = toDiscordTimestamp(event[tag], "F")
+            # else: current_event_info.update({tag: str(event[tag])[:256]})
             current_event_info.update({tag: str(event[tag])[:256]})
-        # current_event_info.update({"description": str(event['description'])[:250]})
         arr.append(current_event_info)
     return arr
 
-# convert from utc to local timezone (for me pacific)
-def toTimezone(timeUTC, to_timezone):
+def toDiscordTimestamp(timeUTC, option):
     dt = datetime.fromisoformat(timeUTC)
-    dt = dt.astimezone(to_timezone)
-    return dt.strftime("%Y-%m-%d %I:%M %p %Z")
+    return f"<t:{int(dt.timestamp())}:{option}>"
 
 # convert the json to text
 def toText(eventsArr):

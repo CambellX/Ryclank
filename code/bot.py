@@ -628,39 +628,50 @@ async def stop(ctx):
 # CTF STUFF
 CTF_CHANNEL_ID = 1574559785334865961
 announcements = {} # message_id to channel_id
+ALLOWED_ROLES = ["Red Team Leads", "Officers", "Helpers"]
 # just to test
 @bot.command()
 async def upcoming(ctx, limit):
     await ctx.send(ctf.fetchUpcomingString(limit), suppress_embeds=True)
 
 @bot.command()
-async def create_ctf(ctx, ctf_name):
-    ctf_info = ctf.fetchCTF(ctf_name)
-    if not ctf_info:
-        await ctx.send(f"Cant find {ctf_name}")
+async def create_ctf(ctx, *, ctf_name):
+    if any(role.name in ALLOWED_ROLES for role in ctx.author.roles):
+        ctf_info = ctf.fetchCTF(ctf_name)
+        if not ctf_info:
+            await ctx.send(f"Cant find {ctf_name}")
+            return
+        channel_name = ctf_name.lower().replace(" ", "-")
+        channel = discord.utils.get(ctx.guild.text_channels, name=channel_name)
+
+        if channel is None:
+            try:
+                channel = await ctx.guild.create_text_channel(channel_name)
+                await channel.set_permissions(ctx.guild.default_role, view_channel=False)
+                await sendAnnouncement(ctf_info, channel)
+                await sendFollowup(channel, ctf_info)
+            except discord.Forbidden:
+                await ctx.send("NO PERMISSIONS!!!! Give me perms to make channel")
         return
-    channel_name = ctf_name.lower().replace(" ", "-")
-    channel = discord.utils.get(ctx.guild.text_channels, name=channel_name)
-
-    if channel is None:
-        channel = await ctx.guild.create_text_channel(channel_name)
-        await channel.set_permissions(ctx.guild.default_role, view_channel=False)
-
-    await sendAnnouncement(ctf_info, channel)
-    await ctx.send("Created Channel")
-
-@bot.command()
-async def sendAnnouncement(ctf_info, destination_channel):
+    await ctx.send("No perms weirdo")
+    
+async def sendAnnouncement(ctf_info, destination_channel) -> bool:  
     channel = bot.get_channel(CTF_CHANNEL_ID)
     message = await channel.send(f"""
-REACT TO THIS MESSAGE TO JOIN {ctf_info["title"]}
-from {ctf_info["start"]} to {ctf_info["finish"]}
+{ctf_info["title"]}
+from {ctf.toDiscordTimestamp(ctf_info["start"], "F")} to {ctf.toDiscordTimestamp(ctf_info["finish"], "F")}
 CTFTime URL: {ctf_info["ctftime_url"]}
 Prizes: {ctf_info["prizes"]}
 Registration URL: {ctf_info["url"]}
-""")
-    announcements[message.id] = destination_channel.id
 
+REACT TO THIS MESSAGE TO JOIN!
+""",suppress_embeds=True)
+    announcements[message.id] = destination_channel.id
+    
+async def sendFollowup(destination_channel, ctf_info):
+    await destination_channel.send(f"""
+{ctf_info['title']} will start in {ctf.toDiscordTimestamp(ctf_info["start"], "R")}
+""")
 @bot.event
 async def on_raw_reaction_add(reaction):
     
@@ -684,5 +695,8 @@ async def help(ctx):
     `!listAdapters` - lists all the available ppl to equip adapters on
     `!ping` - shows equipped adapter and activated channels
     `!stop` - :ryslow:
+    ------------------------------------------------------
+    Requires perms
+    `!create_ctf "CTF"` - Creates a channel for the ctf.
     """
     )
